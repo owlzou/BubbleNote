@@ -1,0 +1,269 @@
+:root {
+    --bubble-color #b3e5fc
+    --shadow-color #ddd
+    --text-color #444
+    --background-color #fff
+    --active-color #1e88e5
+    --dark-color rgba(0, 0, 0, 87%)
+    --primary-color #fff
+    --accent-color #3f51b5
+    --sub-color #9e9e9e
+}
+
+.dark-mode {
+    --bubble-color #607d8b
+    --text-color #fff
+    --shadow-color #757575
+    --background-color #424242
+    --primary-color #424242
+}
+
+@font-face {
+    font-family 'Oswald'
+    src url('./Oswald-Regular.ttf')
+}
+
+body {
+    margin 0
+    padding 0
+    -webkit-tap-highlight-color transparent
+}
+
+input, select, textarea {
+    outline none
+}
+
+/* ----------------------------------- 覆盖 ----------------------------------- */
+.mdl-layout__content {
+    display flex
+    flex-direction column
+}
+
+.mdl-layout {
+    height 100vh
+    width 100vw
+    background var(--background-color)
+}
+
+.mdl-layout__header {
+    background-color var(--background-color)
+    user-select none
+    color var(--text-color)
+}
+
+.mdl-layout-title {
+    font-family 'Oswald'
+}
+
+.mdl-layout__drawer, .mdl-list__item, .mdl-button, .mdl-dialog {
+    background-color var(--background-color)
+    color var(--text-color)
+}
+
+.mdl-layout__drawer {
+    border-right 1px solid var(--backgroud-color)
+
+    img {
+        height 150px
+        object-fit cover
+    }
+
+    .mdl-list {
+        padding 0
+        margin 0
+    }
+
+    .mdl-list__item {
+        padding 12px
+        cursor pointer
+        font-size 14px
+        padding-right 20px
+    }
+}
+
+.mdl-layout__drawer-button svg {
+    color var(--text-color)
+    position absolute
+    top 12px
+    right 12px
+}
+
+.mdl-button--icon svg {
+    position absolute
+    top 4px
+    left 4px
+    color var(--text-color)
+}
+
+.mdl-dialog {
+    display none
+
+    &.is-visible {
+        display inline-block
+        position fixed
+        top 50%
+        left 50%
+        transform translate(-50%, -50%)
+        z-index 2000
+    }
+
+    &__content {
+        color var(--text-color)
+        overflow-y auto
+        max-height 50vh
+    }
+}
+
+/* --------------------------------- special -------------------------------- */
+.clean-a {
+    color inherit
+    font-weight auto
+    display inline-block
+    display flex
+    text-decoration none
+}
+
+/* --------------------------------- ripple --------------------------------- */
+.mdl-switch .rippleJS .ripple {
+    background var(--primary-color)
+}
+
+/* ----------------------------------- 主页面 ---------------------------------- */
+.icons {
+    margin-right 16px
+    position relative
+    width 24px
+    height @width
+
+    svg {
+        position absolute
+        top: ((@width - 24px) / 2)
+    }
+}
+
+.history {
+    display flex
+    flex-direction column
+    flex-grow 1
+    justify-content flex-end
+    padding 10px
+    overflow-y auto
+}
+
+.bubble {
+    text-align right
+    user-select none
+
+    .text {
+        display inline-block
+        justify-content flex-end
+        margin 10px
+        border-radius 15px 0 15px 15px
+        background var(--bubble-color)
+        padding 10px 15px
+        text-align right
+        color var(--text-color)
+        position relative
+
+        &:hover {
+            cursor pointer
+        }
+    }
+}
+
+/* ----------------------------------- 输入框 ---------------------------------- */
+.input {
+    display flex
+    right 0
+    bottom 0
+    left 0
+    border-top 1px solid var(--shadow-color)
+    padding 10px
+    text-align center
+
+    input {
+        flex-grow 1
+        border none
+        background var(--background-color)
+        height 32px
+        resize none
+        line-height 32px
+        font-size 1rem
+        color var(--text-color)
+    }
+}
+
+/* ---------------------------------- 浮动菜单 ---------------------------------- */
+.float-action {
+    display inline-block
+    position absolute
+    top 50%
+    left 50%
+    transform translate(-50%, -50%)
+    box-shadow 0 9px 46px 8px rgba(0, 0, 0, 0.14), 0 11px 15px -7px rgba(0, 0, 0, 0.12), 0 24px 38px 3px rgba(0, 0, 0, 0.2)
+    background var(--background-color)
+    padding 20px
+    width 60%
+    z-index 999
+    max-height 100vh
+
+    textarea {
+        border none
+        resize none
+        width 100%
+        margin-bottom 20px
+        color var(--text-color)
+        background var(--background-color)
+    }
+
+    .menu-down {
+        display flex
+        justify-content space-between
+    }
+
+    button {
+        border none
+        background transparent
+    }
+
+    svg {
+        color var(--text-color)
+    }
+}
+
+.delete-button {
+    &:hover, &:active {
+        svg {
+            color #f44336
+        }
+    }
+}
+
+.close-button {
+    &:hover, &:active {
+        svg {
+            color var(--active-color)
+        }
+    }
+}
+
+.check-button {
+    &:hover, &:active {
+        svg {
+            color #4caf50
+        }
+    }
+}
+
+.send-button {
+    &:hover, &:active {
+        svg {
+            color var(--accent-color)
+        }
+    }
+}
+
+.sub-text {
+    color var(--accent-color)
+    font-size 12px
+}

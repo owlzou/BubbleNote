@@ -1,0 +1,10 @@
+{
+  "include": ["src/ts/*.ts"],
+  "compilerOptions": {
+    "lib": ["esnext","dom"],
+    "outDir": "./www/js",
+    "target": "esnext",
+    "module": "esnext",
+    "moduleResolution": "node"
+  }
+}
