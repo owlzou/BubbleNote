@@ -29,20 +29,26 @@ async function connection(): Promise<SQLiteDBConnection> {
  * 初始化数据库
  *
  */
-export async function initDB() {
+export async function initDB(version:string) {
   const createTablesExecuteSet = `
     CREATE TABLE IF NOT EXISTS notes(
       id TEXT PRIMARY KEY NOT NULL,
       content TEXT NOT NULL,
       date INTEGER
-    )
+    );
+    CREATE TABLE IF NOT EXISTS env(
+      version TEXT PRIMARY KEY NOT NULL
+    );
   `;
+
+  const envExecute = `INSERT INTO env (version) VALUES (?) ON CONFLICT (version) DO UPDATE SET version = ?`
 
   //建表
   try {
     db = await connection();
     await db.open();
     await db.execute(createTablesExecuteSet);
+    await db.run(envExecute, [version,version]);
   } catch (err) {
     return Promise.reject(err)
   }

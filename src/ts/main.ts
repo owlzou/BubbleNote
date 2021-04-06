@@ -2,6 +2,7 @@
 import { initDB, saveEntry, deleteEntry, get, getCount, Message } from "./db_capacitor"
 import { Capacitor } from "@capacitor/core"
 import { SplashScreen } from '@capacitor/splash-screen';
+import { Clipboard } from '@capacitor/clipboard';
 //TAURI
 import { promisified } from 'tauri/api/tauri'
 //依赖
@@ -11,6 +12,15 @@ import "vanilla-ripplejs"
 //src
 import "../assets/index.styl"
 var Elm = require('../Main.elm').Elm;
+const pkg = require("../../package.json")
+
+type Flag =
+    {
+        data: Array<Message>
+        , count: number
+        , platform: String
+        , version: String
+    }
 
 /* ----------------------------------- 初始化 ---------------------------------- */
 if ((window as any).__TAURI__) {
@@ -26,18 +36,18 @@ if ((window as any).__TAURI__) {
 async function initMobile() {
     console.log("ENV: Android")
 
-    await initDB();
+    await initDB(pkg.version);
 
     SplashScreen.hide();
 
     const data = await get(100, 0);
     const count = (await getCount())[0]["count(*)"];
 
-    //console.log(`send_data: ${JSON.stringify({ data: data, count: count, platform: "Android" })}`)
+    const flags: Flag = { data: data, count: count, platform: "Android", version: pkg.version }
 
     const app = Elm.Main.init({
         node: document.getElementById("app"),
-        flags: { data: data, count: count, platform: "Android" },
+        flags: flags,
     });
     //保存
     app.ports.saveEntry.subscribe((msg: Message) => {
@@ -51,6 +61,13 @@ async function initMobile() {
         deleteEntry(id)
         app.ports.afterDelete.send(id)
     })
+
+    app.ports.copy.subscribe(async (content) => {
+        await Clipboard.write({
+            string: content
+        });
+        app.ports.sendSnackbar.send("复制成功")
+    })
 }
 
 
@@ -60,16 +77,15 @@ async function initMobile() {
 async function initTauri() {
     console.log("ENV: TAURI")
     //init database
-    await promisified({ cmd: 'init' });
+    await promisified({ cmd: 'init', version: pkg.version });
 
-    const data = await promisified({ cmd: 'get' });
-    const count = await promisified({ cmd: "getCount" });
-
-    SplashScreen.hide();
+    const data = await promisified({ cmd: 'get' }) as Array<Message>;
+    const count = await promisified({ cmd: "getCount" }) as number;
+    const flags: Flag = { data: data, count: count, platform: "Desktop", version: pkg.version }
 
     const app = Elm.Main.init({
         node: document.getElementById("app"),
-        flags: { data: data, count: count, platform: "Desktop" }
+        flags: flags
     });
     //保存
     app.ports.saveEntry.subscribe((msg: Message) => {
@@ -80,6 +96,8 @@ async function initTauri() {
     app.ports.deleteEntry.subscribe((id: string) => {
         promisified({ cmd: 'deleteEntry', id: id }).then(_ => { app.ports.afterDelete.send(id) })
     })
+
+    // app.ports.copy.subscribe((content) => { app.ports.sendSnackbar.send(copy(content)) })
 }
 
 /* -------------------------------- Web 测试用代码 ------------------------------- */
@@ -88,10 +106,11 @@ function initWeb() {
     console.log("ENV: Web")
 
     let data = [{ "id": "abcde", "content": "Test1", "date": 1617030253012 }, { "id": "efgge", "content": "Test2", "date": 1617030173784 }];
+    const flags: Flag = { data: data, count: data.length, platform: "Web", version: pkg.version }
 
     const app = Elm.Main.init({
         node: document.getElementById("app"),
-        flags: { data: data, count: data.length, platform: "Web" }
+        flags: flags
     });
 
     // 
@@ -111,5 +130,38 @@ function initWeb() {
         app.ports.afterDelete.send(id)
     })
 
+    app.ports.copy.subscribe((content) => { app.ports.sendSnackbar.send(copy(content)) })
+
 }
 
+/* ----------------------------------- 共用 ----------------------------------- */
+
+// document.execCommand 未来会被废弃
+function copy(content: string): string {
+    //console.log("[Copy]", content);
+    let input = document.createElement('input');
+    input.value = content;
+    document.body.appendChild(input);
+    input.select();
+    const success = document.execCommand("copy");
+    document.body.removeChild(input);
+
+    /* if (!success) {
+        if (navigator.permissions) {
+            navigator.permissions.query({ name: 'clipboard-write' }).then(async function (result) {
+                if (result.state === 'granted') {
+                    await navigator.clipboard.writeText(content);
+                    return "复制成功"
+                } else if (result.state === 'prompt') {
+                    return "复制失败"
+                } else {
+                    return "复制失败"
+                }
+            });
+        } else { return "复制失败" }
+    } else {
+        return "复制成功"
+    } */
+
+    return success ? "复制成功" : "复制失败"
+}

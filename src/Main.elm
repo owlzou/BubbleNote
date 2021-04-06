@@ -5,7 +5,7 @@ import Credits
 import Dict exposing (Dict)
 import Html exposing (Html, a, button, div, header, img, input, label, li, main_, nav, p, span, text, textarea, th, ul)
 import Html.Attributes exposing (checked, class, href, placeholder, src, style, target, type_, value)
-import Html.Events exposing (keyCode, on, onClick, onInput)
+import Html.Events exposing (keyCode, on, onClick, onInput, onMouseDown, onMouseUp)
 import Html.Keyed as Keyed
 import Html.Lazy exposing (lazy, lazy2, lazy3)
 import Icons
@@ -54,11 +54,15 @@ type alias Model =
     , activeMessage : Maybe Message
     , activeInput : String
     , zone : Time.Zone
+    , longPressStart : Bool
     , drawerOpen : Bool
     , delDialogOpen : Bool
     , aboutDialogOpen : Bool
+    , editDialogOpen : Bool
+    , snackbarText : Maybe String
     , nightMode : Bool
     , platform : Platform
+    , version : String
     }
 
 
@@ -66,6 +70,7 @@ type alias InitData =
     { data : List Message
     , count : Int
     , platform : Platform
+    , verison : String
     }
 
 
@@ -73,7 +78,7 @@ init : E.Value -> ( Model, Cmd Msg )
 init val =
     case D.decodeValue jsonToData val of
         Ok value ->
-            ( { initModel | messages = Dict.fromList (List.map (\i -> ( i.id, i )) value.data), count = value.count, platform = value.platform }, Task.perform AdjustTimeZone Time.here )
+            ( { initModel | messages = Dict.fromList (List.map (\i -> ( i.id, i )) value.data), count = value.count, platform = value.platform, version = value.verison }, Task.perform AdjustTimeZone Time.here )
 
         Err _ ->
             ( initModel, Task.perform AdjustTimeZone Time.here )
@@ -90,11 +95,19 @@ initModel =
 
     -- 时间
     , zone = Time.utc
+    , longPressStart = False
+
+    -- 开关
     , drawerOpen = False
     , delDialogOpen = False
     , aboutDialogOpen = False
+    , editDialogOpen = False
+    , snackbarText = Nothing
+
+    -- 设置
     , nightMode = False
     , platform = Web
+    , version = "Unknown"
     }
 
 
@@ -104,17 +117,20 @@ initModel =
 
 type Msg
     = Enter -- 获取时间
-    | PastEnter Time.Posix --得到返回的时间
+    | SaveEnter Time.Posix --得到返回的时间
     | AfterSaveEnter Message --得到数据库返回的 分配的 ID
     | OnInput String
     | OnFloatActionInput String
     | Update
     | Delete ID
     | AfterDelete ID
-    | ClickOnBubble Message
+    | OnBubbleClicked Message
+    | OnBubbleLongPress Message Bool
+    | OnBubbleLongPressTimeUp Time.Posix
+    | OnSnackbar String
+    | OnSnackbarClose Time.Posix
     | Close
     | AdjustTimeZone Time.Zone -- 时间
-    | NoOp
     | SwitchDrawer Bool
     | SwitchNightMode
     | SwitchDelDialog Bool
@@ -126,23 +142,24 @@ update msg model =
     case msg of
         Enter ->
             if String.length (String.trim model.input) > 0 then
-                ( model, Task.perform PastEnter Time.now )
+                ( model, Task.perform SaveEnter Time.now )
 
             else
                 ( { model | input = "" }, Cmd.none )
 
-        PastEnter newTime ->
+        SaveEnter newTime ->
             let
                 message =
                     { id = "", content = model.input, date = Time.posixToMillis newTime }
             in
-            ( { model | date = Time.posixToMillis newTime, count = model.count + 1 }
+            ( { model | date = Time.posixToMillis newTime }
             , saveEntry message
             )
 
         AfterSaveEnter message ->
             ( { model
                 | messages = upsertDict message model.messages
+                , count = model.count + 1
                 , input = ""
               }
             , Cmd.none
@@ -158,7 +175,7 @@ update msg model =
                         Nothing ->
                             Cmd.none
             in
-            ( { model | activeMessage = Nothing }, cmd )
+            ( { model | activeMessage = Nothing, editDialogOpen = False }, cmd )
 
         OnInput str ->
             ( { model | input = str }, Cmd.none )
@@ -170,8 +187,32 @@ update msg model =
             in
             ( { model | activeMessage = am }, Cmd.none )
 
-        ClickOnBubble message ->
-            ( { model | activeMessage = Just message, activeInput = message.content }, Cmd.none )
+        OnBubbleClicked message ->
+            ( { model
+                | editDialogOpen =
+                    if model.longPressStart then
+                        True
+
+                    else
+                        False
+                , activeInput = message.content
+                , activeMessage = Just message
+                , longPressStart = False
+              }
+            , Cmd.none
+            )
+
+        OnBubbleLongPress message b ->
+            ( { model | longPressStart = b, activeInput = message.content }, Cmd.none )
+
+        OnBubbleLongPressTimeUp _ ->
+            ( { model | longPressStart = False }, copy model.activeInput )
+
+        OnSnackbar str ->
+            ( { model | snackbarText = Just str }, Cmd.none )
+
+        OnSnackbarClose _ ->
+            ( { model | snackbarText = Nothing }, Cmd.none )
 
         AdjustTimeZone zone ->
             ( { model | zone = zone }, Cmd.none )
@@ -183,10 +224,7 @@ update msg model =
             ( { model | messages = Dict.remove id model.messages, count = model.count - 1 }, Cmd.none )
 
         Close ->
-            ( { model | activeMessage = Nothing }, Cmd.none )
-
-        NoOp ->
-            ( model, Cmd.none )
+            ( { model | activeMessage = Nothing, editDialogOpen = False }, Cmd.none )
 
         SwitchDrawer b ->
             ( { model | drawerOpen = b }, Cmd.none )
@@ -242,13 +280,10 @@ view model =
             ]
 
         -- DIALOGS
-        , case model.activeMessage of
-            Just msg ->
-                div [] [ floatAction model.activeInput, delDialog model.delDialogOpen msg ]
-
-            Nothing ->
-                span [] []
-        , lazy2 aboutDialog model.aboutDialogOpen model.platform
+        , lazy2 floatAction model.editDialogOpen model.activeInput
+        , lazy2 delDialog model.delDialogOpen model.activeMessage
+        , lazy3 aboutDialog model.aboutDialogOpen model.platform model.version
+        , lazy snackbar model.snackbarText
 
         -- 遮罩
         , div [ class "mdl-layout__obfuscator", drawerVisible, onClick (SwitchDrawer False) ] []
@@ -314,16 +349,28 @@ drawer open count nightMode =
 bubble : Message -> Html Msg
 bubble message =
     div [ class "bubble" ]
-        [ div [ class "text", onClick (ClickOnBubble message) ]
+        [ div
+            [ class "text"
+            , onClick (OnBubbleClicked message)
+            , onMouseDown (OnBubbleLongPress message True)
+            , onTouchStart (OnBubbleLongPress message True)
+            ]
             [ text message.content
             , div [ class "rippleJS" ] []
             ]
         ]
 
 
-floatAction : String -> Html Msg
-floatAction content =
-    div [ class "float-action" ]
+floatAction : Bool -> String -> Html Msg
+floatAction vis content =
+    div
+        [ class "float-action"
+        , if vis then
+            class "is-visible"
+
+          else
+            class ""
+        ]
         [ textarea [ Html.Attributes.rows 10, placeholder "textarea ...", onInput OnFloatActionInput ] [ text content ]
         , div [ class "menu-down" ]
             [ iconButton [ class "delete-button", onClick (SwitchDelDialog True) ] [ Icons.trash2 ]
@@ -333,7 +380,7 @@ floatAction content =
         ]
 
 
-delDialog : Bool -> Message -> Html Msg
+delDialog : Bool -> Maybe Message -> Html Msg
 delDialog vis msg =
     let
         delDialogVisible =
@@ -342,18 +389,26 @@ delDialog vis msg =
 
             else
                 class ""
+
+        m =
+            case msg of
+                Just message ->
+                    message
+
+                Nothing ->
+                    emptyMessage
     in
     div [ class "mdl-dialog", delDialogVisible ]
-        [ div [ class "mdl-dialog__content" ] [ p [] [ Html.b [] [ text "确定删除？" ] ], p [] [ text msg.content ] ]
+        [ div [ class "mdl-dialog__content" ] [ p [] [ Html.b [] [ text "确定删除？" ] ], p [] [ text m.content ] ]
         , div [ class "mdl-dialog__actions" ]
-            [ button [ class "mdl-button", onClick (Delete msg.id) ] [ text "确定" ]
+            [ button [ class "mdl-button", onClick (Delete m.id) ] [ text "确定" ]
             , button [ class "mdl-button close", onClick (SwitchDelDialog False) ] [ text "取消" ]
             ]
         ]
 
 
-aboutDialog : Bool -> Platform -> Html Msg
-aboutDialog vis platform =
+aboutDialog : Bool -> Platform -> String -> Html Msg
+aboutDialog vis platform version =
     let
         delDialogVisible =
             if vis then
@@ -376,7 +431,7 @@ aboutDialog vis platform =
     div [ class "mdl-dialog", delDialogVisible ]
         [ div [ class "mdl-dialog__content" ]
             [ p [] [ Html.b [] [ text "关于" ] ]
-            , p [] [ text "BubbleNote v0.1 ", span [ class "sub-text" ] [ text for ] ]
+            , p [] [ text ("BubbleNote v" ++ version ++ " "), span [ class "sub-text" ] [ text for ] ]
             , p [] [ a [ href "https://github.com/owlzou/BubbleNote", target "_blank" ] [ text "https://github.com/owlzou/BubbleNote" ] ]
             , p [] [ Html.b [] [ text "第三方代码" ] ]
             , case platform of
@@ -406,8 +461,27 @@ aboutDialog vis platform =
 
 
 subscriptions : Model -> Sub Msg
-subscriptions _ =
-    Sub.batch [ afterSave AfterSaveEnter, afterDelete AfterDelete ]
+subscriptions model =
+    let
+        base =
+            [ afterSave AfterSaveEnter, afterDelete AfterDelete, sendSnackbar OnSnackbar ]
+
+        final =
+            if model.longPressStart then
+                List.append base [ Time.every 1500 OnBubbleLongPressTimeUp ]
+
+            else
+                base
+
+        final2 =
+            case model.snackbarText of
+                Just _ ->
+                    List.append final [ Time.every 1500 OnSnackbarClose ]
+
+                Nothing ->
+                    final
+    in
+    Sub.batch final2
 
 
 
@@ -431,6 +505,12 @@ port deleteEntry : ID -> Cmd msg
 port afterDelete : (ID -> msg) -> Sub msg
 
 
+port copy : String -> Cmd msg
+
+
+port sendSnackbar : (String -> msg) -> Sub msg
+
+
 
 -- Helper
 
@@ -446,6 +526,11 @@ onEnter msg =
                 D.fail "fail"
     in
     on "keydown" (D.andThen isEnter keyCode)
+
+
+onTouchStart : Msg -> Html.Attribute Msg
+onTouchStart msg =
+    on "touchstart" (D.succeed msg)
 
 
 jsonToMessage : D.Decoder Message
@@ -471,7 +556,7 @@ jsonToData =
                 _ ->
                     Web
     in
-    D.map3 InitData (D.field "data" (D.list jsonToMessage)) (D.field "count" D.int) (D.field "platform" (D.map decodePlatform D.string))
+    D.map4 InitData (D.field "data" (D.list jsonToMessage)) (D.field "count" D.int) (D.field "platform" (D.map decodePlatform D.string)) (D.field "version" D.string)
 
 
 updateMessage : Message -> Dict ID Message -> Dict ID Message
@@ -488,7 +573,15 @@ upsertDict msg dict =
         Nothing ->
             Dict.insert msg.id msg dict
 
+
+emptyMessage : Message
+emptyMessage =
+    { id = "", content = "", date = 0 }
+
+
+
 -- MDL
+
 
 iconButton : List (Html.Attribute msg) -> List (Html msg) -> Html msg
 iconButton attr list =
@@ -514,3 +607,20 @@ switch bool switchMsg =
             ]
         ]
 
+
+snackbar : Maybe String -> Html Msg
+snackbar msg =
+    let
+        ( klass, str ) =
+            case msg of
+                Just message ->
+                    ( "mdl-snackbar--active", message )
+
+                Nothing ->
+                    ( "", "" )
+    in
+    div
+        [ class "mdl-snackbar", class klass ]
+        [ div [ class "mdl-snackbar__text" ] [ text str ]
+        , button [ class "mdl-snackbar__action", onClick (OnSnackbarClose (Time.millisToPosix 0)) ] [ text "关闭" ]
+        ]

@@ -16,9 +16,9 @@ fn main() {
         Err(e) => Err(e.to_string()),
         Ok(command) => {
           match command {
-            Init { callback, error } => tauri::execute_promise(
+            Init { version,  callback, error } => tauri::execute_promise(
               _webview,
-              move || Ok(db::init_db().expect("Database initialization error")),
+              move || Ok(db::init_db(version).expect("Database initialization error")),
               callback,
               error,
             ),

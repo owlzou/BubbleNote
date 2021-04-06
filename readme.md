@@ -2,7 +2,7 @@ A simple note app.
 
 ## Build
 
-Dependices: `Node.js` & `elm`
+Dependices: `Node.js` & `Elm`
 
 1. `npm install`
 2. Build for Android (use [Capacitor](https://capacitorjs.com/))
