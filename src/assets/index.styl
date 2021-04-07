@@ -53,7 +53,7 @@ input, select, textarea {
 
 .mdl-layout-title {
     font-family 'Oswald'
-    user-select: none
+    user-select none
 }
 
 .mdl-layout__drawer, .mdl-list__item, .mdl-button, .mdl-dialog {
@@ -152,24 +152,50 @@ input, select, textarea {
 }
 
 .bubble {
-    text-align right
-    user-select none
+    display flex
+    align-items baseline
+    justify-content flex-end
 
-    .text {
-        display inline-block
-        justify-content flex-end
-        margin 10px
-        border-radius 15px 0 15px 15px
-        background var(--bubble-color)
-        padding 10px 15px
+    &-wrapper {
         text-align right
-        color var(--text-color)
-        position relative
+        user-select none
 
-        &:hover {
-            cursor pointer
+        .text {
+            display inline-block
+            justify-content flex-end
+            margin 10px
+            border-radius 15px 0 15px 15px
+            background var(--bubble-color)
+            padding 10px 15px
+            text-align left
+            color var(--text-color)
+            position relative
+            word-break break-all
+
+            &:hover {
+                cursor pointer
+            }
         }
     }
+
+    .time {
+        color var(--sub-color)
+        font-size 12px
+        user-select none
+    }
+}
+
+.date-wrapper {
+    text-align center
+    margin 10px
+}
+
+.date {
+    padding 5px 10px
+    background rgba(0, 0, 0, 0.2)
+    border-radius 10px
+    color white
+    user-select none
 }
 
 /* ----------------------------------- 输入框 ---------------------------------- */
@@ -215,6 +241,7 @@ input, select, textarea {
         margin-bottom 20px
         color var(--text-color)
         background var(--background-color)
+        font-size 14px
     }
 
     .menu-down {
@@ -231,8 +258,8 @@ input, select, textarea {
         color var(--text-color)
     }
 
-    &.is-visible{
-        display:inline-block
+    &.is-visible {
+        display inline-block
     }
 }
 

@@ -221,7 +221,7 @@ update msg model =
             ( { model | activeMessage = Nothing, delDialogOpen = False }, deleteEntry id )
 
         AfterDelete id ->
-            ( { model | messages = Dict.remove id model.messages, count = model.count - 1 }, Cmd.none )
+            ( { model | messages = Dict.remove id model.messages, count = model.count - 1, editDialogOpen = False }, Cmd.none )
 
         Close ->
             ( { model | activeMessage = Nothing, editDialogOpen = False }, Cmd.none )
@@ -275,7 +275,7 @@ view model =
 
         -- CONTENT
         , main_ [ class "mdl-layout__content" ]
-            [ lazy viewHistory model.messages
+            [ lazy2 viewHistory model.zone model.messages
             , lazy viewInput model.input
             ]
 
@@ -290,13 +290,25 @@ view model =
         ]
 
 
-viewHistory : Dict ID Message -> Html Msg
-viewHistory messages =
+viewHistory : Time.Zone -> Dict ID Message -> Html Msg
+viewHistory zone messages =
     let
+        dateStr msg =
+            getDate zone (Time.millisToPosix msg.date)
+
         indexedBubble message =
-            ( message.id, bubble message )
+            ( message.id, bubble zone message )
+
+        msgList =
+            groupBy (\i -> dateStr i) <|
+                List.map (\i -> Tuple.second i) <|
+                    Dict.toList messages
+
+        msg2Html : ( String, List Message ) -> List ( ID, Html Msg )
+        msg2Html ( date, msgs ) =
+            ( date, div [ class "date-wrapper" ] [ span [ class "date" ] [ text date ] ] ) :: List.map (\t -> indexedBubble t) msgs
     in
-    Keyed.node "div" [ class "history" ] <| List.map indexedBubble (List.sortBy .date <| List.map (\( _, data ) -> data) <| Dict.toList messages)
+    Keyed.node "div" [ class "history" ] <| List.concatMap msg2Html msgList
 
 
 viewInput : String -> Html Msg
@@ -304,6 +316,29 @@ viewInput str =
     div [ class "input" ]
         [ input [ onInput OnInput, onEnter Enter, placeholder "Input something ...", value str ] []
         , iconButton [ onClick Enter, class "send-button" ] [ Icons.send ]
+        ]
+
+
+viewTime : Time.Zone -> Time.Posix -> Html msg
+viewTime zone posix =
+    div [ class "time" ] [ text (getTime zone posix) ]
+
+
+bubble : Time.Zone -> Message -> Html Msg
+bubble zone message =
+    div [ class "bubble" ]
+        [ viewTime zone (Time.millisToPosix message.date)
+        , div [ class "bubble-wrapper" ]
+            [ div
+                [ class "text"
+                , onClick (OnBubbleClicked message)
+                , onMouseDown (OnBubbleLongPress message True)
+                , onTouchStart (OnBubbleLongPress message True)
+                ]
+                [ div [ class "rippleJS" ] []
+                , text message.content
+                ]
+            ]
         ]
 
 
@@ -342,21 +377,6 @@ drawer open count nightMode =
                 , span [ class "mdl-list__item-primary-content" ] [ text "关于" ]
                 , div [ class "rippleJS" ] []
                 ]
-            ]
-        ]
-
-
-bubble : Message -> Html Msg
-bubble message =
-    div [ class "bubble" ]
-        [ div
-            [ class "text"
-            , onClick (OnBubbleClicked message)
-            , onMouseDown (OnBubbleLongPress message True)
-            , onTouchStart (OnBubbleLongPress message True)
-            ]
-            [ text message.content
-            , div [ class "rippleJS" ] []
             ]
         ]
 
@@ -579,6 +599,54 @@ emptyMessage =
     { id = "", content = "", date = 0 }
 
 
+fill : String -> String
+fill str =
+    if String.length str < 2 then
+        "0" ++ str
+
+    else
+        str
+
+
+getDate : Time.Zone -> Time.Posix -> String
+getDate zone posix =
+    let
+        day =
+            fill <| String.fromInt <| Time.toDay zone posix
+
+        month =
+            toSimpleMonth <| Time.toMonth zone posix
+
+        year =
+            String.fromInt <| Time.toYear zone posix
+    in
+    year ++ "/" ++ month ++ "/" ++ day
+
+
+getTime : Time.Zone -> Time.Posix -> String
+getTime zone posix =
+    let
+        hour =
+            fill <| String.fromInt <| Time.toHour zone posix
+
+        min =
+            fill <| String.fromInt <| Time.toMinute zone posix
+    in
+    hour ++ ":" ++ min
+
+
+groupBy : (a -> comparable) -> List a -> List ( comparable, List a )
+groupBy fn list =
+    let
+        comparableList =
+            Dict.keys <| Dict.fromList <| List.map (\i -> ( i, "" )) (List.map fn list)
+
+        listGroup =
+            List.map (\i -> List.filter (\t -> fn t == i) list) comparableList
+    in
+    List.map2 Tuple.pair comparableList listGroup
+
+
 
 -- MDL
 
@@ -624,3 +692,43 @@ snackbar msg =
         [ div [ class "mdl-snackbar__text" ] [ text str ]
         , button [ class "mdl-snackbar__action", onClick (OnSnackbarClose (Time.millisToPosix 0)) ] [ text "关闭" ]
         ]
+
+
+toSimpleMonth : Time.Month -> String
+toSimpleMonth m =
+    case m of
+        Time.Jan ->
+            "01"
+
+        Time.Feb ->
+            "02"
+
+        Time.Mar ->
+            "03"
+
+        Time.Apr ->
+            "04"
+
+        Time.May ->
+            "05"
+
+        Time.Jun ->
+            "06"
+
+        Time.Jul ->
+            "07"
+
+        Time.Aug ->
+            "08"
+
+        Time.Sep ->
+            "09"
+
+        Time.Oct ->
+            "10"
+
+        Time.Nov ->
+            "11"
+
+        Time.Dec ->
+            "12"
