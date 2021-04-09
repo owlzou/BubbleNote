@@ -1,11 +1,12 @@
 port module Main exposing (main)
 
 import Browser
+import Browser.Dom as Dom
 import Credits
 import Dict exposing (Dict)
-import Html exposing (Html, a, button, div, header, img, input, label, li, main_, nav, p, span, text, textarea, th, ul)
+import Html exposing (Html, a, button, div, header, img, input, label, li, main_, p, span, text, textarea, ul)
 import Html.Attributes exposing (checked, class, href, placeholder, src, style, target, type_, value)
-import Html.Events exposing (keyCode, on, onClick, onInput, onMouseDown, onMouseUp)
+import Html.Events exposing (keyCode, on, onClick, onInput, onMouseDown)
 import Html.Keyed as Keyed
 import Html.Lazy exposing (lazy, lazy2, lazy3)
 import Icons
@@ -14,6 +15,7 @@ import Json.Encode as E
 import List
 import Task
 import Time
+import Html.Attributes exposing (id)
 
 
 
@@ -135,6 +137,7 @@ type Msg
     | SwitchNightMode
     | SwitchDelDialog Bool
     | SwitchAboutDialog Bool
+    | NoOp
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
@@ -162,7 +165,7 @@ update msg model =
                 , count = model.count + 1
                 , input = ""
               }
-            , Cmd.none
+            , jumpToBottom "history"
             )
 
         Update ->
@@ -238,6 +241,9 @@ update msg model =
         SwitchAboutDialog b ->
             ( { model | aboutDialogOpen = b, drawerOpen = False }, Cmd.none )
 
+        NoOp ->
+            ( model, Cmd.none )
+
 
 
 -- VIEW
@@ -306,9 +312,9 @@ viewHistory zone messages =
 
         msg2Html : ( String, List Message ) -> List ( ID, Html Msg )
         msg2Html ( date, msgs ) =
-            ( date, div [ class "date-wrapper" ] [ span [ class "date" ] [ text date ] ] ) :: List.map (\t -> indexedBubble t) msgs
+            ( date, div [ class "date-wrapper" ] [ span [ class "date" ] [ text date ] ] ) :: List.map (\t -> indexedBubble t) (List.sortBy .date msgs)
     in
-    Keyed.node "div" [ class "history" ] <| List.concatMap msg2Html msgList
+    Keyed.node "div" [ class "history", id "history" ] <| List.concatMap msg2Html msgList
 
 
 viewInput : String -> Html Msg
@@ -645,6 +651,13 @@ groupBy fn list =
             List.map (\i -> List.filter (\t -> fn t == i) list) comparableList
     in
     List.map2 Tuple.pair comparableList listGroup
+
+
+jumpToBottom : String -> Cmd Msg
+jumpToBottom id =
+    Dom.getViewportOf id
+        |> Task.andThen (\info -> Dom.setViewportOf id 0 info.scene.height)
+        |> Task.attempt (\_ -> NoOp)
 
 
 
