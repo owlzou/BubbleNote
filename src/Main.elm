@@ -5,7 +5,7 @@ import Browser.Dom as Dom
 import Credits
 import Dict exposing (Dict)
 import Html exposing (Html, a, button, div, header, img, input, label, li, main_, p, span, text, textarea, ul)
-import Html.Attributes exposing (checked, class, href, placeholder, src, style, target, type_, value)
+import Html.Attributes exposing (checked, class, href, id, placeholder, src, style, target, type_, value)
 import Html.Events exposing (keyCode, on, onClick, onInput, onMouseDown)
 import Html.Keyed as Keyed
 import Html.Lazy exposing (lazy, lazy2, lazy3)
@@ -15,7 +15,6 @@ import Json.Encode as E
 import List
 import Task
 import Time
-import Html.Attributes exposing (id)
 
 
 
@@ -78,12 +77,21 @@ type alias InitData =
 
 init : E.Value -> ( Model, Cmd Msg )
 init val =
-    case D.decodeValue jsonToData val of
-        Ok value ->
-            ( { initModel | messages = Dict.fromList (List.map (\i -> ( i.id, i )) value.data), count = value.count, platform = value.platform, version = value.verison }, Task.perform AdjustTimeZone Time.here )
+    let
+        model =
+            case D.decodeValue jsonToData val of
+                Ok value ->
+                    { initModel
+                        | messages = Dict.fromList (List.map (\i -> ( i.id, i )) value.data)
+                        , count = value.count
+                        , platform = value.platform
+                        , version = value.verison
+                    }
 
-        Err _ ->
-            ( initModel, Task.perform AdjustTimeZone Time.here )
+                Err _ ->
+                    initModel
+    in
+    ( model, Cmd.batch [ Task.perform AdjustTimeZone Time.here, jumpToBottom "history" ] )
 
 
 initModel : Model
@@ -494,7 +502,7 @@ subscriptions model =
 
         final =
             if model.longPressStart then
-                List.append base [ Time.every 1500 OnBubbleLongPressTimeUp ]
+                List.append base [ Time.every 2000 OnBubbleLongPressTimeUp ]
 
             else
                 base

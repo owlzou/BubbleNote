@@ -40,15 +40,21 @@ input, select, textarea {
     background var(--background-color)
 }
 
+.mdl-layout__content {
+    overflow-y hidden
+}
+
 .mdl-layout__header {
     background-color var(--background-color)
     user-select none
+    -ms-user-select none
     color var(--text-color)
 }
 
 .mdl-layout-title {
     font-family 'Oswald'
     user-select none
+    -ms-user-select none
 }
 
 .mdl-layout__drawer, .mdl-list__item, .mdl-button, .mdl-dialog {
@@ -139,8 +145,15 @@ input, select, textarea {
 
 .history {
     padding 10px
-    overflow-y scroll
-    height calc(100vh - 131px) //calc(100vh - 56px - 55px - 20px)
+    overflow-y auto
+    height calc(100vh - 131px)
+    display flex
+    flex-direction column
+    scrollbar-width thin
+
+    &>:first-child {
+        margin-top auto
+    }
 }
 
 .bubble {
@@ -152,6 +165,7 @@ input, select, textarea {
     &-wrapper {
         text-align right
         user-select none
+        -ms-user-select none
 
         .text {
             display inline-block
@@ -176,6 +190,7 @@ input, select, textarea {
         color var(--sub-color)
         font-size 12px
         user-select none
+        -ms-user-select none
     }
 }
 
@@ -190,6 +205,7 @@ input, select, textarea {
     border-radius 10px
     color white
     user-select none
+    -ms-user-select none
 }
 
 /* ----------------------------------- 输入框 ---------------------------------- */
