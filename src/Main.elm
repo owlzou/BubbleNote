@@ -13,6 +13,7 @@ import Icons
 import Json.Decode as D
 import Json.Encode as E
 import List
+import Parser exposing ((|.), (|=), Parser, Step, chompIf, chompUntil, chompWhile, getChompedString, oneOf, succeed, symbol)
 import Task
 import Time
 
@@ -32,6 +33,12 @@ main =
 
 type alias ID =
     String
+
+
+type Content
+    = Text String
+    | Tag String
+    | Link String String
 
 
 type Platform
@@ -200,12 +207,7 @@ update msg model =
 
         OnBubbleClicked message ->
             ( { model
-                | editDialogOpen =
-                    if model.longPressStart then
-                        True
-
-                    else
-                        False
+                | editDialogOpen = True
                 , activeInput = message.content
                 , activeMessage = Just message
                 , longPressStart = False
@@ -340,18 +342,27 @@ viewTime zone posix =
 
 bubble : Time.Zone -> Message -> Html Msg
 bubble zone message =
+    let
+        content =
+            case Parser.run contentParser message.content of
+                Ok list ->
+                    List.map content2html list
+
+                Err err ->
+                    [ text <| Parser.deadEndsToString (Debug.log "error" err) ]
+    in
     div [ class "bubble" ]
         [ viewTime zone (Time.millisToPosix message.date)
         , div [ class "bubble-wrapper" ]
             [ div
                 [ class "text"
                 , onClick (OnBubbleClicked message)
-                , onMouseDown (OnBubbleLongPress message True)
-                , onTouchStart (OnBubbleLongPress message True)
+
+                -- , onMouseDown (OnBubbleLongPress message True)
+                -- , onTouchStart (OnBubbleLongPress message True)
                 ]
-                [ div [ class "rippleJS" ] []
-                , text message.content
-                ]
+                -- ([ div [ class "rippleJS" ] [] ] ++ content)
+                content
             ]
         ]
 
@@ -562,6 +573,11 @@ onEnter msg =
     on "keydown" (D.andThen isEnter keyCode)
 
 
+onClickWithStopPropagation : msg -> Html.Attribute msg
+onClickWithStopPropagation message =
+    Html.Events.custom "click" (D.succeed { message = message, stopPropagation = True, preventDefault = False })
+
+
 onTouchStart : Msg -> Html.Attribute Msg
 onTouchStart msg =
     on "touchstart" (D.succeed msg)
@@ -753,3 +769,60 @@ toSimpleMonth m =
 
         Time.Dec ->
             "12"
+
+
+tagParser : Parser Content
+tagParser =
+    succeed Tag
+        |. symbol "#"
+        |= (getChompedString <| chompUntil "#")
+        |. symbol "#"
+
+
+linkParser : Parser Content
+linkParser =
+    succeed Link
+        |= Parser.oneOf [ Parser.map (\_ -> "https://") (symbol "https://"), Parser.map (\_ -> "http://") (symbol "http://") ]
+        |= (getChompedString <| chompWhile (\c -> c /= '\n' && c /= '\t' && c /= '\u{000D}' && c /= ' '))
+        |. oneOf [ Parser.end, chompIf (\c -> c == ' ' || c == '\n' || c == '\u{000D}') ]
+
+
+textParser : Parser Content
+textParser =
+    succeed Text
+        |= (getChompedString <| chompIf (\_ -> True))
+
+
+contentHelp : List Content -> Parser (Step (List Content) (List Content))
+contentHelp cmds =
+    let
+        nextParser : Parser Content -> Parser (Step (List Content) (List Content))
+        nextParser parser =
+            succeed (\next -> Parser.Loop (next :: cmds))
+                |= parser
+
+        loopList : List (Parser (Step (List Content) (List Content)))
+        loopList =
+            List.map nextParser [ linkParser, Parser.backtrackable tagParser, textParser ]
+    in
+    oneOf <|
+        List.append loopList
+            [ succeed () |> Parser.map (\_ -> Parser.Done (List.reverse cmds)) ]
+
+
+contentParser : Parser (List Content)
+contentParser =
+    Parser.loop [] contentHelp
+
+
+content2html : Content -> Html Msg
+content2html content =
+    case content of
+        Tag str ->
+            span [ class "tag" ] [ text ("#" ++ str ++ "#") ]
+
+        Link agree str ->
+            a [ href (agree ++ str), class "link", target "_blank", onClickWithStopPropagation NoOp ] [ text (agree ++ str) ]
+
+        Text str ->
+            text str

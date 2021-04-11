@@ -7,6 +7,7 @@
     --dark-color rgba(0, 0, 0, 87%)
     --primary-color #fff
     --accent-color #3f51b5
+    --link-color #ff4081
     --sub-color #9e9e9e
 }
 
@@ -182,6 +183,15 @@ input, select, textarea {
 
             &:hover {
                 cursor pointer
+            }
+
+            .tag {
+                color var(--link-color)
+                cursor pointer
+            }
+
+            .link {
+                text-decoration underline
             }
         }
     }
