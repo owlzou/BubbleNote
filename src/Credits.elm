@@ -13,7 +13,8 @@ type alias Info =
 
 common : List Info
 common =
-    [ { name = "elm-feather", url = "https://github.com/feathericons/elm-feather", license = "BSD-3-Clause License" }
+    [ { name = "Elm", url = "https://elm-lang.org/", license = "" }
+    , { name = "elm-feather", url = "https://github.com/feathericons/elm-feather", license = "BSD-3-Clause License" }
     , { name = "Material Design Lite", url = "https://getmdl.io/", license = "Apache License 2.0" }
     , { name = "rippleJS", url = "https://github.com/samthor/rippleJS", license = "MIT" }
     , { name = "Nano ID", url = "https://github.com/ai/nanoid/", license = "MIT" }

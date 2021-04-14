@@ -6,7 +6,7 @@ import Credits
 import Dict exposing (Dict)
 import Html exposing (Html, a, button, div, header, img, input, label, li, main_, p, span, text, textarea, ul)
 import Html.Attributes exposing (checked, class, href, id, placeholder, src, style, target, type_, value)
-import Html.Events exposing (keyCode, on, onClick, onInput, onMouseDown)
+import Html.Events exposing (keyCode, on, onClick, onInput)
 import Html.Keyed as Keyed
 import Html.Lazy exposing (lazy, lazy2, lazy3)
 import Icons
@@ -142,11 +142,10 @@ type Msg
     | Delete ID
     | AfterDelete ID
     | OnBubbleClicked Message
-    | OnBubbleLongPress Message Bool
-    | OnBubbleLongPressTimeUp Time.Posix
     | OnSnackbar String
     | OnSnackbarClose Time.Posix
     | Close
+    | Copy
     | AdjustTimeZone Time.Zone -- 时间
     | SwitchDrawer Bool
     | SwitchNightMode
@@ -215,12 +214,6 @@ update msg model =
             , Cmd.none
             )
 
-        OnBubbleLongPress message b ->
-            ( { model | longPressStart = b, activeInput = message.content }, Cmd.none )
-
-        OnBubbleLongPressTimeUp _ ->
-            ( { model | longPressStart = False }, copy model.activeInput )
-
         OnSnackbar str ->
             ( { model | snackbarText = Just str }, Cmd.none )
 
@@ -238,6 +231,9 @@ update msg model =
 
         Close ->
             ( { model | activeMessage = Nothing, editDialogOpen = False }, Cmd.none )
+
+        Copy ->
+            ( model, copy model.activeInput )
 
         SwitchDrawer b ->
             ( { model | drawerOpen = b }, Cmd.none )
@@ -348,8 +344,8 @@ bubble zone message =
                 Ok list ->
                     List.map content2html list
 
-                Err err ->
-                    [ text <| Parser.deadEndsToString (Debug.log "error" err) ]
+                Err _ ->
+                    []
     in
     div [ class "bubble" ]
         [ viewTime zone (Time.millisToPosix message.date)
@@ -357,11 +353,7 @@ bubble zone message =
             [ div
                 [ class "text"
                 , onClick (OnBubbleClicked message)
-
-                -- , onMouseDown (OnBubbleLongPress message True)
-                -- , onTouchStart (OnBubbleLongPress message True)
                 ]
-                -- ([ div [ class "rippleJS" ] [] ] ++ content)
                 content
             ]
         ]
@@ -420,6 +412,7 @@ floatAction vis content =
         , div [ class "menu-down" ]
             [ iconButton [ class "delete-button", onClick (SwitchDelDialog True) ] [ Icons.trash2 ]
             , iconButton [ class "close-button", onClick Close ] [ Icons.xCircle ]
+            , iconButton [ class "copy-button", onClick Copy ] [ Icons.copy ]
             , iconButton [ class "check-button", onClick Update ] [ Icons.check ]
             ]
         ]
@@ -511,20 +504,13 @@ subscriptions model =
         base =
             [ afterSave AfterSaveEnter, afterDelete AfterDelete, sendSnackbar OnSnackbar ]
 
-        final =
-            if model.longPressStart then
-                List.append base [ Time.every 2000 OnBubbleLongPressTimeUp ]
-
-            else
-                base
-
         final2 =
             case model.snackbarText of
                 Just _ ->
-                    List.append final [ Time.every 1500 OnSnackbarClose ]
+                    List.append base [ Time.every 1500 OnSnackbarClose ]
 
                 Nothing ->
-                    final
+                    base
     in
     Sub.batch final2
 
@@ -578,9 +564,11 @@ onClickWithStopPropagation message =
     Html.Events.custom "click" (D.succeed { message = message, stopPropagation = True, preventDefault = False })
 
 
-onTouchStart : Msg -> Html.Attribute Msg
-onTouchStart msg =
-    on "touchstart" (D.succeed msg)
+
+{- onTouchStart : Msg -> Html.Attribute Msg
+   onTouchStart msg =
+       on "touchstart" (D.succeed msg)
+-}
 
 
 jsonToMessage : D.Decoder Message
@@ -796,9 +784,28 @@ textParser =
 contentHelp : List Content -> Parser (Step (List Content) (List Content))
 contentHelp cmds =
     let
+        mergeText : Content -> Step (List Content) (List Content)
+        mergeText next =
+            case next of
+                Text str ->
+                    case cmds of
+                        x :: xs ->
+                            case x of
+                                Text baseStr ->
+                                    Parser.Loop (Text (baseStr ++ str) :: xs)
+
+                                _ ->
+                                    Parser.Loop (next :: cmds)
+
+                        _ ->
+                            Parser.Loop (next :: cmds)
+
+                _ ->
+                    Parser.Loop (next :: cmds)
+
         nextParser : Parser Content -> Parser (Step (List Content) (List Content))
         nextParser parser =
-            succeed (\next -> Parser.Loop (next :: cmds))
+            succeed mergeText
                 |= parser
 
         loopList : List (Parser (Step (List Content) (List Content)))

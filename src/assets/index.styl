@@ -19,6 +19,20 @@
     --primary-color #424242
 }
 
+/* ----------------------------------- MIXIN ----------------------------------- */
+user-select(n) {
+    user-select n
+    -ms-user-select n
+}
+
+color-button(n) {
+    &:hover, &:active {
+        svg {
+            color n
+        }
+    }
+}
+
 @font-face {
     font-family 'Oswald'
     src url('./Oswald-Regular.ttf')
@@ -47,15 +61,13 @@ input, select, textarea {
 
 .mdl-layout__header {
     background-color var(--background-color)
-    user-select none
-    -ms-user-select none
+    user-select(none)
     color var(--text-color)
 }
 
 .mdl-layout-title {
     font-family 'Oswald'
-    user-select none
-    -ms-user-select none
+    user-select(none)
 }
 
 .mdl-layout__drawer, .mdl-list__item, .mdl-button, .mdl-dialog {
@@ -147,10 +159,11 @@ input, select, textarea {
 .history {
     padding 10px
     overflow-y auto
+    overflow-x auto
     height calc(100vh - 131px)
     display flex
     flex-direction column
-    scrollbar-width thin
+    width calc(100vw - 20px)
 
     &>:first-child {
         margin-top auto
@@ -161,12 +174,11 @@ input, select, textarea {
     display flex
     align-items baseline
     justify-content flex-end
-    flex-shrink 0
+    width 100%
 
     &-wrapper {
         text-align right
-        user-select none
-        -ms-user-select none
+        user-select(none)
 
         .text {
             display inline-block
@@ -199,8 +211,7 @@ input, select, textarea {
     .time {
         color var(--sub-color)
         font-size 12px
-        user-select none
-        -ms-user-select none
+        user-select(none)
     }
 }
 
@@ -214,8 +225,7 @@ input, select, textarea {
     background rgba(0, 0, 0, 0.2)
     border-radius 10px
     color white
-    user-select none
-    -ms-user-select none
+    user-select(none)
 }
 
 /* ----------------------------------- 输入框 ---------------------------------- */
@@ -283,36 +293,25 @@ input, select, textarea {
     }
 }
 
+/* ----------------------------------- 按钮 ----------------------------------- */
 .delete-button {
-    &:hover, &:active {
-        svg {
-            color #f44336
-        }
-    }
+    color-button(#f44336)
 }
 
 .close-button {
-    &:hover, &:active {
-        svg {
-            color var(--active-color)
-        }
-    }
+    color-button(var(--active-color))
 }
 
 .check-button {
-    &:hover, &:active {
-        svg {
-            color #4caf50
-        }
-    }
+    color-button(#4caf50)
 }
 
 .send-button {
-    &:hover, &:active {
-        svg {
-            color var(--accent-color)
-        }
-    }
+    color-button(var(--accent-color))
+}
+
+.copy-button {
+    color-button(#ff9800)
 }
 
 .sub-text {
