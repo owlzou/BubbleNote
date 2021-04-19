@@ -1,6 +1,6 @@
 {
   "name": "bubble-note",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "scripts": {
     "dev": "webpack serve --open --config webpack.dev.js",
     "dev:desktop": "tauri dev",

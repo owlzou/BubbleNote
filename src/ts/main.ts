@@ -110,7 +110,8 @@ function initWeb() {
         { "id": "efgge", "content": "https://github.com/", "date": 1617030173784 },
         { "content": "#TAG# AND TEXT", "date": 1618126244323, "id": "N3Tkf5qOcqtUt3SmbLT08" },
         { "content": "#NOT TAG", "date": 1618129529618, "id": "ngZ39WNVEYAQXf8yYVhk8" },
-        { "content": "https://github.com/ #TAGS#", "date": 1618134126056, "id": "9LYVnGP7zRWnR446ij0CL" }
+        { "content": "https://github.com/ #TAGS#", "date": 1618134126056, "id": "9LYVnGP7zRWnR446ij0CL" },
+        { "content": "dummy", "date": 1618134126057, "id": "9LYVnGP7zRWnR446i3422" }
     ];
     const flags: Flag = { data: data, count: data.length, platform: "Web", version: pkg.version }
 

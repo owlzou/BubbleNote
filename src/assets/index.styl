@@ -165,8 +165,8 @@ input, select, textarea {
     flex-direction column
     width calc(100vw - 20px)
 
-    &>:first-child {
-        margin-top auto
+    &>:first-child{
+        margin-top:auto !important    
     }
 }
 
@@ -175,6 +175,7 @@ input, select, textarea {
     align-items baseline
     justify-content flex-end
     width 100%
+    flex-shrink: 0
 
     &-wrapper {
         text-align right
@@ -218,6 +219,7 @@ input, select, textarea {
 .date-wrapper {
     text-align center
     margin 10px
+    flex-shrink: 0
 }
 
 .date {
